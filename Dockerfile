@@ -32,6 +32,10 @@ RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86
 COPY conda-environment.yml ./conda-environment-template.yml
 RUN cat conda-environment-template.yml | envsubst > environment.yml
 
+# Accept the terms-of-service
+RUN conda tos accept --channel https://repo.anaconda.com/pkgs/main --override-channels && \
+    conda tos accept --channel https://repo.anaconda.com/pkgs/r --override-channels
+
 RUN conda env create -f environment.yml
 RUN echo "source activate $CONDA_ENV_NAME" > ~/.bashrc
 ENV PATH $CONDA_DIR/envs/$CONDA_ENV_NAME/bin:$PATH
