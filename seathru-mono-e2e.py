@@ -24,6 +24,52 @@ from deps.monodepth2.utils import download_model_if_doesnt_exist
 from seathru import *
 
 
+def process_single_image(image_path, output_path, encoder, depth_decoder, device, feed_width, feed_height, args):
+    """Process a single image"""
+    print(f"\nProcessing: {image_path}")
+    
+    # Load image and preprocess
+    img = Image.fromarray(rawpy.imread(image_path).postprocess()) if args.raw else pil.open(image_path).convert('RGB')
+    original_width, original_height = img.size
+    
+    # Only resize if image is larger than max_size (if specified)
+    if args.max_size and max(original_width, original_height) > args.max_size:
+        img.thumbnail((args.max_size, args.max_size), Image.ANTIALIAS)
+        resized_width, resized_height = img.size
+    else:
+        resized_width, resized_height = original_width, original_height
+    # img = exposure.equalize_adapthist(np.array(img), clip_limit=0.03)
+    # img = Image.fromarray((np.round(img * 255.0)).astype(np.uint8))
+    input_image = img.resize((feed_width, feed_height), pil.LANCZOS)
+    input_image = transforms.ToTensor()(input_image).unsqueeze(0)
+    print('Preprocessed image', flush=True)
+
+    # PREDICTION
+    input_image = input_image.to(device)
+    features = encoder(input_image)
+    outputs = depth_decoder(features)
+
+    disp = outputs[("disp", 0)]
+    disp_resized = torch.nn.functional.interpolate(
+        disp, (resized_height, resized_width), mode="bilinear", align_corners=False)
+
+    # Saving colormapped depth image
+    disp_resized_np = disp_resized.squeeze().cpu().detach().numpy()
+    mapped_im_depths = ((disp_resized_np - np.min(disp_resized_np)) / (
+            np.max(disp_resized_np) - np.min(disp_resized_np))).astype(np.float32)
+    print("Processed image", flush=True)
+    print('Loading image...', flush=True)
+    depths = preprocess_monodepth_depth_map(mapped_im_depths, args.monodepth_add_depth,
+                                            args.monodepth_multiply_depth)
+    recovered = run_pipeline(np.array(img) / 255.0, depths, args)
+    # recovered = exposure.equalize_adapthist(scale(np.array(recovered)), clip_limit=0.03)
+    sigma_est = estimate_sigma(recovered, multichannel=True, average_sigmas=True) / 10.0
+    recovered = denoise_tv_chambolle(recovered, sigma_est, multichannel=True)
+    im = Image.fromarray((np.round(recovered * 255.0)).astype(np.uint8))
+    im.save(output_path, format='png')
+    print(f'Saved: {output_path}')
+
+
 def run(args):
     """Function to predict for a single image or folder of images
     """
@@ -64,52 +110,62 @@ def run(args):
     depth_decoder.to(device)
     depth_decoder.eval()
 
-    # Load image and preprocess
-    img = Image.fromarray(rawpy.imread(args.image).postprocess()) if args.raw else pil.open(args.image).convert('RGB')
-    original_width, original_height = img.size
+    # Check if input is directory or single image
+    if args.input_dir:
+        # Process directory
+        if not os.path.exists(args.output_dir):
+            os.makedirs(args.output_dir)
+            print(f"Created output directory: {args.output_dir}")
+        
+        # Get all image files
+        image_extensions = ['*.jpg', '*.jpeg', '*.png', '*.JPG', '*.JPEG', '*.PNG']
+        if args.raw:
+            image_extensions.extend(['*.raw', '*.RAW', '*.dng', '*.DNG'])
+        
+        image_files = []
+        for ext in image_extensions:
+            image_files.extend(glob.glob(os.path.join(args.input_dir, ext)))
+        
+        if not image_files:
+            print(f"No images found in {args.input_dir}")
+            return
+        
+        print(f"Found {len(image_files)} images to process")
+        
+        # Process each image
+        for idx, image_path in enumerate(image_files, 1):
+            print(f"\n[{idx}/{len(image_files)}] Processing...")
+            
+            # Generate output filename
+            base_name = os.path.basename(image_path)
+            name_without_ext = os.path.splitext(base_name)[0]
+            output_path = os.path.join(args.output_dir, f"{name_without_ext}_seathru.png")
+            
+            try:
+                process_single_image(image_path, output_path, encoder, depth_decoder, 
+                                   device, feed_width, feed_height, args)
+            except Exception as e:
+                print(f"Error processing {image_path}: {e}")
+                continue
+        
+        print(f"\n✓ Batch processing complete! Processed {len(image_files)} images")
+        print(f"Output saved to: {args.output_dir}")
     
-    # Only resize if image is larger than max_size (if specified)
-    if args.max_size and max(original_width, original_height) > args.max_size:
-        img.thumbnail((args.max_size, args.max_size), Image.ANTIALIAS)
-        resized_width, resized_height = img.size
+    elif args.image:
+        # Process single image
+        process_single_image(args.image, args.output, encoder, depth_decoder, 
+                           device, feed_width, feed_height, args)
+        print('Done.')
     else:
-        resized_width, resized_height = original_width, original_height
-    # img = exposure.equalize_adapthist(np.array(img), clip_limit=0.03)
-    # img = Image.fromarray((np.round(img * 255.0)).astype(np.uint8))
-    input_image = img.resize((feed_width, feed_height), pil.LANCZOS)
-    input_image = transforms.ToTensor()(input_image).unsqueeze(0)
-    print('Preprocessed image', flush=True)
-
-    # PREDICTION
-    input_image = input_image.to(device)
-    features = encoder(input_image)
-    outputs = depth_decoder(features)
-
-    disp = outputs[("disp", 0)]
-    disp_resized = torch.nn.functional.interpolate(
-        disp, (resized_height, resized_width), mode="bilinear", align_corners=False)
-
-    # Saving colormapped depth image
-    disp_resized_np = disp_resized.squeeze().cpu().detach().numpy()
-    mapped_im_depths = ((disp_resized_np - np.min(disp_resized_np)) / (
-            np.max(disp_resized_np) - np.min(disp_resized_np))).astype(np.float32)
-    print("Processed image", flush=True)
-    print('Loading image...', flush=True)
-    depths = preprocess_monodepth_depth_map(mapped_im_depths, args.monodepth_add_depth,
-                                            args.monodepth_multiply_depth)
-    recovered = run_pipeline(np.array(img) / 255.0, depths, args)
-    # recovered = exposure.equalize_adapthist(scale(np.array(recovered)), clip_limit=0.03)
-    sigma_est = estimate_sigma(recovered, multichannel=True, average_sigmas=True) / 10.0
-    recovered = denoise_tv_chambolle(recovered, sigma_est, multichannel=True)
-    im = Image.fromarray((np.round(recovered * 255.0)).astype(np.uint8))
-    im.save(args.output, format='png')
-    print('Done.')
+        print("Error: Must specify either --image or --input-dir")
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--image', required=True, help='Input image')
-    parser.add_argument('--output', default='output.png', help='Output filename')
+    parser.add_argument('--image', help='Input image (for single image processing)')
+    parser.add_argument('--output', default='output.png', help='Output filename (for single image processing)')
+    parser.add_argument('--input-dir', help='Input directory (for batch processing)')
+    parser.add_argument('--output-dir', default='output', help='Output directory (for batch processing)')
     parser.add_argument('--f', type=float, default=2.0, help='f value (controls brightness)')
     parser.add_argument('--l', type=float, default=0.5, help='l value (controls balance of attenuation constants)')
     parser.add_argument('--p', type=float, default=0.01, help='p value (controls locality of illuminant map)')
@@ -127,5 +183,10 @@ if __name__ == '__main__':
                         help='monodepth model name')
     parser.add_argument('--output-graphs', action='store_true', help='Output graphs')
     parser.add_argument('--raw', action='store_true', help='RAW image')
+    parser.add_argument('--no-cuda', action='store_true', help='Force CPU processing')
     args = parser.parse_args()
+    
+    # Validate arguments
+    if not args.image and not args.input_dir:
+        parser.error('Must specify either --image for single image or --input-dir for batch processing')
     run(args)
