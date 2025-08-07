@@ -66,8 +66,14 @@ def run(args):
 
     # Load image and preprocess
     img = Image.fromarray(rawpy.imread(args.image).postprocess()) if args.raw else pil.open(args.image).convert('RGB')
-    img.thumbnail((args.size, args.size), Image.ANTIALIAS)
     original_width, original_height = img.size
+    
+    # Only resize if image is larger than max_size (if specified)
+    if args.max_size and max(original_width, original_height) > args.max_size:
+        img.thumbnail((args.max_size, args.max_size), Image.ANTIALIAS)
+        resized_width, resized_height = img.size
+    else:
+        resized_width, resized_height = original_width, original_height
     # img = exposure.equalize_adapthist(np.array(img), clip_limit=0.03)
     # img = Image.fromarray((np.round(img * 255.0)).astype(np.uint8))
     input_image = img.resize((feed_width, feed_height), pil.LANCZOS)
@@ -81,7 +87,7 @@ def run(args):
 
     disp = outputs[("disp", 0)]
     disp_resized = torch.nn.functional.interpolate(
-        disp, (original_height, original_width), mode="bilinear", align_corners=False)
+        disp, (resized_height, resized_width), mode="bilinear", align_corners=False)
 
     # Saving colormapped depth image
     disp_resized_np = disp_resized.squeeze().cpu().detach().numpy()
@@ -113,7 +119,7 @@ if __name__ == '__main__':
                         help='Replacement depth percentile value for invalid depths (range 0-1)')
     parser.add_argument('--spread-data-fraction', type=float, default=0.05,
                         help='Require data to be this fraction of depth range away from each other in attenuation estimations')
-    parser.add_argument('--size', type=int, default=320, help='Size to output')
+    parser.add_argument('--max-size', type=int, default=None, help='Maximum size for processing (default: no resizing)')
     parser.add_argument('--monodepth-add-depth', type=float, default=2.0, help='Additive value for monodepth map')
     parser.add_argument('--monodepth-multiply-depth', type=float, default=10.0,
                         help='Multiplicative value for monodepth map')
