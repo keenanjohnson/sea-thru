@@ -9,6 +9,7 @@ import io
 
 import numpy as np
 import PIL.Image as pil
+from PIL import Image
 import matplotlib as mpl
 import matplotlib.cm as cm
 import pynng
@@ -24,12 +25,58 @@ from deps.monodepth2.utils import download_model_if_doesnt_exist
 from seathru import *
 
 
+def load_image(image_path, args):
+    """Load image with support for various formats including GPR"""
+    file_ext = os.path.splitext(image_path)[1].lower()
+    
+    # Check if it's a GPR file
+    if file_ext in ['.gpr']:
+        return load_gpr_image(image_path)
+    # Check if it's a RAW file
+    elif args.raw or file_ext in ['.raw', '.dng']:
+        return Image.fromarray(rawpy.imread(image_path).postprocess())
+    else:
+        return pil.open(image_path).convert('RGB')
+
+def load_gpr_image(image_path):
+    """Load GPR image with fallback methods"""
+    try:
+        # First, try rawpy (in case newer versions support GPR)
+        return Image.fromarray(rawpy.imread(image_path).postprocess())
+    except Exception as rawpy_error:
+        try:
+            # Try tifffile for TIFF-based GPR files
+            import tifffile
+            img_array = tifffile.imread(image_path)
+            # Convert to 8-bit if needed
+            if img_array.dtype == np.uint16:
+                img_array = (img_array / 256).astype(np.uint8)
+            return Image.fromarray(img_array)
+        except Exception as tifffile_error:
+            try:
+                # Try PIL as fallback
+                return pil.open(image_path).convert('RGB')
+            except Exception as pil_error:
+                # Provide helpful error message with conversion suggestions
+                print(f"\nWarning: Unable to read GPR file '{image_path}' directly.")
+                print("GPR files use JBIG compression which is not widely supported by Python libraries.")
+                print("\nSuggested solutions:")
+                print("1. Convert GPR to DNG format using Adobe DNG Converter")
+                print("2. Use GoPro's Quik app to export as TIFF")
+                print("3. Use dcraw or RawTherapee to convert to standard format")
+                print("4. Use exiftool to extract embedded JPEG preview (lower quality)")
+                print(f"\nSkipping file: {image_path}")
+                
+                raise RuntimeError(
+                    f"GPR format not supported. Please convert '{image_path}' to a supported format (DNG, TIFF, or JPEG)."
+                )
+
 def process_single_image(image_path, output_path, encoder, depth_decoder, device, feed_width, feed_height, args):
     """Process a single image"""
     print(f"\nProcessing: {image_path}")
     
     # Load image and preprocess
-    img = Image.fromarray(rawpy.imread(image_path).postprocess()) if args.raw else pil.open(image_path).convert('RGB')
+    img = load_image(image_path, args)
     original_width, original_height = img.size
     
     # Only resize if image is larger than max_size (if specified)
@@ -121,6 +168,8 @@ def run(args):
         image_extensions = ['*.jpg', '*.jpeg', '*.png', '*.JPG', '*.JPEG', '*.PNG']
         if args.raw:
             image_extensions.extend(['*.raw', '*.RAW', '*.dng', '*.DNG'])
+        # Always include GPR files for auto-detection
+        image_extensions.extend(['*.gpr', '*.GPR'])
         
         image_files = []
         for ext in image_extensions:
@@ -182,7 +231,7 @@ if __name__ == '__main__':
     parser.add_argument('--model-name', type=str, default="mono_1024x320",
                         help='monodepth model name')
     parser.add_argument('--output-graphs', action='store_true', help='Output graphs')
-    parser.add_argument('--raw', action='store_true', help='RAW image')
+    parser.add_argument('--raw', action='store_true', help='Process RAW images (including DNG, RAW, and GPR formats)')
     parser.add_argument('--no-cuda', action='store_true', help='Force CPU processing')
     args = parser.parse_args()
     
