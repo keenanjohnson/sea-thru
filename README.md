@@ -17,8 +17,44 @@ Additionally, in order to make this an all-in-one package, the [Monodepth2 submo
     - This can take around 2 hours the first time; from then onwards you only need to run `docker compose up` to get the container running and it'll boot up instantly.
 2. Once the container is built and running, in a separate terminal run `docker exec -it seathru /bin/bash`
     - Replace `seathru` in that command if you've modified the `SERVICE` enviornment variable in `.env`
-3. From within the container you can now run `python seathru-mono-e2e.py --image ${PATH_TO_IMAGE}`
+3. From within the container you can now run the image processing commands (see Usage section below)
     - This root directory is mounted into the container each time you bring it up via `docker compose up`, meaning any files you add on your host machine to this directory will _also_ be available within the container.
+
+## Usage
+
+### Single Image Processing
+Process a single underwater image:
+```bash
+python seathru-mono-e2e.py --image ${PATH_TO_IMAGE}
+```
+
+With custom output filename:
+```bash
+python seathru-mono-e2e.py --image input.jpg --output enhanced.png
+```
+
+### Batch Directory Processing
+Process all images in a directory:
+```bash
+python seathru-mono-e2e.py --input-dir ./test_images/input_JPEG --output-dir ./test_images/output_JPEG
+```
+
+This will:
+- Process all JPEG/PNG images in the input directory
+- Save enhanced images to the output directory with "_seathru" suffix
+- Automatically create the output directory if it doesn't exist
+- Show progress for each image being processed
+
+### Advanced Options
+- `--max-size`: Limit maximum image dimension (default: no resizing)
+  ```bash
+  python seathru-mono-e2e.py --image input.jpg --max-size 2000
+  ```
+- `--f`: Control brightness (default: 2.0)
+- `--l`: Control balance of attenuation constants (default: 0.5)
+- `--p`: Control locality of illuminant map (default: 0.01)
+- `--output-graphs`: Generate debug visualization graphs
+- `--no-cuda`: Force CPU processing if CUDA is unavailable
 
 ## Description
 
