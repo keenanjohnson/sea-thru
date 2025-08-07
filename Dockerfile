@@ -21,7 +21,11 @@ RUN apt-get update && apt-get install -y \
     gettext-base \
     ffmpeg \
     libsm6 \
-    libxext6 && \
+    libxext6 \
+    libtiff-dev \
+    libjpeg-dev \
+    libpng-dev \
+    libfreetype6-dev && \
     apt-get clean
 
 # Install miniconda (Basically anaconda without all the defaults, just the CLI.)
@@ -39,6 +43,10 @@ RUN conda tos accept --channel https://repo.anaconda.com/pkgs/main --override-ch
 RUN conda env create -f environment.yml
 RUN echo "source activate $CONDA_ENV_NAME" > ~/.bashrc
 ENV PATH $CONDA_DIR/envs/$CONDA_ENV_NAME/bin:$PATH
+
+# Reinstall Pillow to ensure it links with system libraries correctly
+RUN $CONDA_DIR/envs/$CONDA_ENV_NAME/bin/pip uninstall -y pillow && \
+    $CONDA_DIR/envs/$CONDA_ENV_NAME/bin/pip install --no-cache-dir pillow==5.1.0
 
 ADD . ${WORKING_DIR}
 
