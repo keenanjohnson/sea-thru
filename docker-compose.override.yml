@@ -1,0 +1,4 @@
+services:
+  seathru:
+    platform: linux/arm64  # For Apple Silicon (M1/M2)
+    # platform: linux/amd64  # Uncomment for Intel/AMD x86_64
