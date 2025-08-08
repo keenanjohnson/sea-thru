@@ -31,17 +31,24 @@ RUN apt-get update && apt-get install -y \
 
 # Install miniconda (Basically anaconda without all the defaults, just the CLI.)
 # This'll let us use whichever version of python is compatible with seathru and monodepth2. Should also make it less painful to upgrade in the future.
-RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh && \
-    /bin/bash ~/miniconda.sh -b -p $CONDA_DIR
+RUN for i in {1..3}; do \
+        wget --quiet --timeout=30 --tries=3 --no-check-certificate https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh && \
+        break || sleep 10; \
+    done && \
+    bash ~/miniconda.sh -b -p $CONDA_DIR
 
 COPY conda-environment.yml ./conda-environment-template.yml
 RUN cat conda-environment-template.yml | envsubst > environment.yml
 
-# Accept the terms-of-service
-RUN conda tos accept --channel https://repo.anaconda.com/pkgs/main --override-channels && \
-    conda tos accept --channel https://repo.anaconda.com/pkgs/r --override-channels
+# Accept the terms-of-service and configure SSL
+RUN $CONDA_DIR/bin/conda tos accept --channel https://repo.anaconda.com/pkgs/main --override-channels && \
+    $CONDA_DIR/bin/conda tos accept --channel https://repo.anaconda.com/pkgs/r --override-channels && \
+    $CONDA_DIR/bin/conda config --set ssl_verify false
 
-RUN conda env create -f environment.yml
+# Configure pip to work without SSL verification
+ENV PIP_TRUSTED_HOST "pypi.org pypi.python.org files.pythonhosted.org"
+
+RUN $CONDA_DIR/bin/conda env create -f environment.yml
 RUN echo "source activate $CONDA_ENV_NAME" > ~/.bashrc
 ENV PATH $CONDA_DIR/envs/$CONDA_ENV_NAME/bin:$PATH
 
