@@ -1,4 +1,16 @@
+# Python Cache files
 __pycache__
+
+# OS Files
 .DS_Store
+
+# Output images
 *.png
+
+# Trained models
 models/
+
+
+# Python venv
+seathru-venv
+env
