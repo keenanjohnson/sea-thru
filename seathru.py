@@ -14,8 +14,8 @@ from skimage.restoration import denoise_bilateral, denoise_tv_chambolle, estimat
 from skimage.morphology import closing, opening, erosion, dilation, disk, diamond, square
 import matplotlib
 # `.use` Must be called before importing pyplot, otherwise generates a warning that the .use will have no effect
-# Not entirely sure what the implications are, but it seems to generate output images just fine in either case
-matplotlib.use('TkAgg')
+# Using 'Agg' backend for headless environments (Docker containers)
+matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 
 

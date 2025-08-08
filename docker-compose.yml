@@ -6,6 +6,8 @@ services:
     build:
       context: .
       dockerfile: ./Dockerfile
+      platforms:
+        - ${PLATFORM}
       args:
         - CONDA_ENV_NAME=${SERVICE}
         - WORKING_DIR=${WORKING_DIR}

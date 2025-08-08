@@ -1,0 +1,28 @@
+# Conda Environment for ARM64 (Apple Silicon) https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html
+name: $CONDA_ENV_NAME
+channels:
+  - conda-forge
+  - pytorch
+dependencies:
+ # Dependencies for sea-thru migrated from requirements.txt https://github.com/hainh/sea-thru/blob/master/requirements.txt
+ # Updated versions for ARM64 compatibility
+  - scikit-learn=1.0.2
+  - numpy=1.21.6  
+  - matplotlib=3.3.4  # Updated from 2.2.2 for ARM64 support
+  - pillow=8.4.0      # Updated from 5.1.0 for ARM64 support
+  - scipy=1.7.3       # Updated from 1.5.2 for ARM64 support
+  - scikit-image=0.19.3  # Updated from 0.16.2 for ARM64 support
+  - pynng=0.7.1
+  - pyyaml=6.0
+
+  # Lock pip version as well to install rawpy, wasn't able to install through conda/mamba
+  - pip=21.3.1
+  - pip:
+    - rawpy==0.17.1  # Updated for ARM64 compatibility
+
+  # Dependencies for Monodepth2 - using more compatible versions for ARM64
+  - python=3.8.16     # Updated from 3.6.6 for better ARM64 support
+  - pytorch=1.12.1    # Updated from 0.4.1 for ARM64 support
+  - torchvision=0.13.1  # Updated from 0.2.1 for ARM64 support
+  - tensorboard=2.8.0   # Using tensorboard instead of tensorboardX
+  - opencv=4.6.0      # Updated from 3.3.1 for ARM64 support
