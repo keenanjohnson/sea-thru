@@ -148,7 +148,7 @@ def run(args):
                 print(f"Error processing {image_path}: {e}")
                 continue
         
-        print(f"\n✓ Batch processing complete! Processed {len(image_files)} images")
+        print(f"\nBatch processing complete! Processed {len(image_files)} images")
         print(f"Output saved to: {args.output_dir}")
     
     elif args.image:
