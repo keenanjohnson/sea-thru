@@ -39,11 +39,29 @@ Process all images in a directory:
 python seathru-mono-e2e.py --input-dir ./test_images/input_JPEG --output-dir ./test_images/output_JPEG
 ```
 
+Process RAW files (DNG, NEF, CR2, ARW):
+```bash
+python seathru-mono-e2e.py --input-dir ./test_images/input_RAW --output-dir ./test_images/output_RAW --raw
+```
+
 This will:
-- Process all JPEG/PNG images in the input directory
+- Process all JPEG/PNG images in the input directory (or RAW files with --raw flag)
 - Save enhanced images to the output directory with "_seathru" suffix
 - Automatically create the output directory if it doesn't exist
 - Show progress for each image being processed
+
+### Processing GoPro GPR Files
+GPR files require conversion to DNG first (the Docker image includes gpr_tools for this):
+
+```bash
+# Step 1: Convert GPR to DNG losslessly (inside Docker container)
+python gpr_converter.py --input-dir ./test_images/input_GPR --output-dir ./test_images/input_DNG
+
+# Step 2: Process the DNG files
+python seathru-mono-e2e.py --input-dir ./test_images/input_DNG --output-dir ./test_images/output_GPR --raw
+```
+
+The Docker image includes `gpr_tools` (GoPro's official tool) for lossless GPR to DNG conversion.
 
 ### Advanced Options
 - `--max-size`: Limit maximum image dimension (default: no resizing)

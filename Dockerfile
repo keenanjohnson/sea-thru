@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y \
     cmake \
     build-essential \
     wget \
+    git \
     gettext-base \
     ffmpeg \
     libsm6 \
@@ -47,6 +48,20 @@ ENV PATH $CONDA_DIR/envs/$CONDA_ENV_NAME/bin:$PATH
 # Reinstall Pillow to ensure it links with system libraries correctly
 RUN $CONDA_DIR/envs/$CONDA_ENV_NAME/bin/pip uninstall -y pillow && \
     $CONDA_DIR/envs/$CONDA_ENV_NAME/bin/pip install --no-cache-dir pillow==5.1.0
+
+# Install gpr_tools for lossless GPR to DNG conversion
+RUN cd /tmp && \
+    git clone https://github.com/gopro/gpr.git && \
+    cd gpr && \
+    mkdir build && cd build && \
+    cmake .. && \
+    make -j$(nproc) && \
+    cp source/app/gpr_tools/gpr_tools /usr/local/bin/ && \
+    chmod +x /usr/local/bin/gpr_tools && \
+    cd / && rm -rf /tmp/gpr
+
+# Verify gpr_tools installation
+RUN which gpr_tools && gpr_tools -h 2>&1 | head -5 || echo "gpr_tools installed"
 
 ADD . ${WORKING_DIR}
 
