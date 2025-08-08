@@ -312,46 +312,13 @@ def refine_neighborhood_map(nmap, min_size = 10, radius = 3):
     return refined_nmap, num_labels - 1
 
 
-def load_gpr_image(img_fname):
-    """Load GPR image with fallback methods"""
-    try:
-        # First, try rawpy (in case newer versions support GPR)
-        return Image.fromarray(rawpy.imread(img_fname).postprocess())
-    except Exception as rawpy_error:
-        try:
-            # Try tifffile for TIFF-based GPR files
-            import tifffile
-            img_array = tifffile.imread(img_fname)
-            # Convert to 8-bit if needed
-            if img_array.dtype == np.uint16:
-                img_array = (img_array / 256).astype(np.uint8)
-            return Image.fromarray(img_array)
-        except Exception as tifffile_error:
-            try:
-                # Try PIL as fallback
-                return Image.open(img_fname).convert('RGB')
-            except Exception as pil_error:
-                # Provide helpful error message with conversion suggestions
-                print(f"\nWarning: Unable to read GPR file '{img_fname}' directly.")
-                print("GPR files use JBIG compression which is not widely supported by Python libraries.")
-                print("\nSuggested solutions:")
-                print("1. Convert GPR to DNG format using Adobe DNG Converter")
-                print("2. Use GoPro's Quik app to export as TIFF")
-                print("3. Use dcraw or RawTherapee to convert to standard format")
-                print("4. Use exiftool to extract embedded JPEG preview (lower quality)")
-                print(f"\nSkipping file: {img_fname}")
-                
-                raise RuntimeError(
-                    f"GPR format not supported. Please convert '{img_fname}' to a supported format (DNG, TIFF, or JPEG)."
-                )
-
 def load_image_and_depth_map(img_fname, depths_fname, size_limit = 1024):
     depths = Image.open(depths_fname)
     
     # Check file extension to determine loading method
     file_ext = img_fname.lower().split('.')[-1]
-    if file_ext == 'gpr':
-        img = load_gpr_image(img_fname)
+    if file_ext in ['gpr', 'raw', 'dng']:
+        img = Image.fromarray(rawpy.imread(img_fname).postprocess())
     else:
         img = Image.fromarray(rawpy.imread(img_fname).postprocess())
     

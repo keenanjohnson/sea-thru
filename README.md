@@ -33,7 +33,7 @@ With custom output filename:
 python seathru-mono-e2e.py --image input.jpg --output enhanced.png
 ```
 
-Process a GoPro GPR file (note: GPR support with limitations):
+Process a GoPro GPR file:
 ```bash
 python seathru-mono-e2e.py --image input.GPR --raw --output enhanced.png
 ```
@@ -44,17 +44,16 @@ Process all images in a directory:
 python seathru-mono-e2e.py --input-dir ./test_images/input_JPEG --output-dir ./test_images/output_JPEG
 ```
 
-Process GPR files (will show helpful error messages for unsupported compression):
+Process GPR files:
 ```bash
 python seathru-mono-e2e.py --input-dir ./test_images/input_GPR --output-dir ./test_images/output_GPR --raw
 ```
 
 This will:
-- Process all JPEG/PNG/GPR images in the input directory
+- Process all JPEG/PNG/RAW images in the input directory (including GPR files when using --raw flag)
 - Save enhanced images to the output directory with "_seathru" suffix
 - Automatically create the output directory if it doesn't exist
 - Show progress for each image being processed
-- Provide helpful guidance for GPR files that cannot be processed directly
 
 ### Advanced Options
 - `--max-size`: Limit maximum image dimension (default: no resizing)
@@ -70,27 +69,26 @@ This will:
 
 ### GPR File Support
 
-This version includes experimental support for GoPro GPR files. However, there are important limitations:
+This version includes support for GoPro GPR files through the rawpy library. GPR files are a variation of DNG (Digital Negative) format and store Bayer-pattern data.
 
-**Current Status:**
-- GPR files are detected and processed automatically
-- Most GPR files use JBIG compression which is not supported by standard Python libraries
-- The system will provide helpful error messages and conversion suggestions
-
-**Recommended Workflow for GPR Files:**
-1. **Best Quality**: Convert GPR to DNG format using Adobe DNG Converter
-2. **Alternative**: Use GoPro Quik app to export as TIFF or JPEG
-3. **Command Line**: Use `dcraw` or `RawTherapee` to convert GPR files
-4. **Quick Preview**: Extract embedded JPEG preview using `exiftool` (lower quality)
+**Usage:**
+- Use the `--raw` flag when processing GPR files
+- rawpy will demosaic the Bayer-pattern data and output RGB images
+- GPR files are treated as standard RAW files
 
 **Example GPR Processing:**
 ```bash
-# This will attempt to process GPR files and show helpful guidance if they can't be read
+# Process GPR files using rawpy
 python seathru-mono-e2e.py --input-dir ./gpr_files --output-dir ./processed --raw
+
+# Single GPR file processing
+python seathru-mono-e2e.py --image underwater.GPR --raw --output enhanced.png
 ```
 
-**Why GPR Files Are Challenging:**
-GPR files use JBIG compression within TIFF containers, which requires specialized libraries not commonly available in Python. The system provides clear guidance on alternative conversion methods to maintain the RAW quality benefits you're seeking.
+**Technical Details:**
+- GPR files contain Bayer-pattern data that requires demosaicing
+- rawpy handles the conversion from Bayer pattern to RGB automatically
+- The resulting images maintain the quality advantages of RAW processing
 
 ## Description
 
