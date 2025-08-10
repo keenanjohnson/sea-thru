@@ -1,5 +1,5 @@
 # Sea-Thru
-Implementation of Sea-thru by Derya Akkaynak and Tali Treibitz
+Implementation of Sea-thru by Derya Akkaynak and Tali Treibitz and made more specific by Keenan Johnson.
 
 __Forked from https://github.com/hainh/sea-thru__
 
